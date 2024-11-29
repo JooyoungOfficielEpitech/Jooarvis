@@ -1,39 +1,54 @@
-from fastapi import APIRouter, HTTPException
-from .models import Task
+from fastapi import APIRouter
+from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
-tasks = []
+# 일정 데이터 모델
+class Schedule(BaseModel):
+    id: int
+    title: str
+    start: str
+    end: str
 
-@router.post("/tasks", response_model=Task)
-def create_task(task: Task):
-    for t in tasks:
-        if t.id == task.id:
-            raise HTTPException(status_code=400, detail="Task ID already exists.")
-    tasks.append(task)
-    return task
+# 임시 일정 데이터
+schedules = [
+    {"id": 1, "title": "Meeting", "start": "2024-11-29", "end": "2024-11-29"},
+    {"id": 2, "title": "Workshop", "start": "2024-11-30", "end": "2024-11-30"},
+]
 
-@router.get("/tasks", response_model=list[Task])
-def get_tasks():
-    return tasks
+# OPTIONS 요청 처리
+@router.options("/{path:path}")
+def handle_options():
+    return JSONResponse(content="OPTIONS request received.", headers={
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "*"
+    })
 
-@router.get("/tasks/{task_id}", response_model=Task)
-def get_task(task_id: int):
-    for task in tasks:
-        if task.id == task_id:
-            return task
-    raise HTTPException(status_code=404, detail="Task not found.")
+# GET /api/schedules - 모든 일정 가져오기
+@router.get("/schedules")
+def get_schedules():
+    return schedules
 
-@router.put("/tasks/{task_id}", response_model=Task)
-def update_task(task_id: int, updated_task: Task):
-    for index, task in enumerate(tasks):
-        if task.id == task_id:
-            tasks[index] = updated_task
-            return updated_task
-    raise HTTPException(status_code=404, detail="Task not found.")
+# POST /api/schedules - 새로운 일정 추가
+@router.post("/schedules")
+def create_schedule(schedule: Schedule):
+    schedules.append(schedule.dict())
+    return {"message": "Schedule added!", "schedule": schedule}
 
-@router.delete("/tasks/{task_id}", response_model=dict)
-def delete_task(task_id: int):
-    global tasks
-    tasks = [task for task in tasks if task.id != task_id]
-    return {"message": "Task deleted."}
+# PUT /api/schedules/{id} - 일정 수정
+@router.put("/schedules/{id}")
+def update_schedule(id: int, schedule: Schedule):
+    for i, s in enumerate(schedules):
+        if s["id"] == id:
+            schedules[i] = schedule.dict()
+            return {"message": "Schedule updated!", "schedule": schedule}
+    return {"error": "Schedule not found!"}
+
+# DELETE /api/schedules/{id} - 일정 삭제
+@router.delete("/schedules/{id}")
+def delete_schedule(id: int):
+    global schedules
+    schedules = [s for s in schedules if s["id"] != id]
+    return {"message": "Schedule deleted!"}
